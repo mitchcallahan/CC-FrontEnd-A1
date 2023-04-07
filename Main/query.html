@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+
+    <title>Song Search</title>
+</head>
+<body>
+    <ul>
+        <li><a href="query.html">Main Page</a></li>
+        <li style="float:right"><a href="../Main/login.html">Logout</a></li>
+    </ul>
+    <div id="user-info"></div>
+    <br>
+    <h1>Song Search</h1>
+    <form id="search-form">
+      <label for="title">Song title:</label>
+      <input type="text" id="title" name="title">
+      <br>
+      <label for="year">Year:</label>
+      <input type="number" id="year" name="year">
+      <br>
+      <label for="artist">Artist:</label>
+      <input type="text" id="artist" name="artist">
+      <br>
+      <button type="submit">Query</button>
+    </form>
+    <div class="red" id="error-message"></div>
+    <br>
+
+    <!-- QUERY results table -->
+    <table id="results-table">
+        <thead>
+        <tr>
+            <th>Title</th>
+            <th>Year</th>
+            <th>Artist</th>
+            <th>Image</th>
+            <th>Action</th>
+        </tr>
+        </thead>
+        <tbody id="results-body">
+        <!-- Table body will be populated dynamically -->
+        </tbody>
+    </table>
+    <br>
+    <div class="red" id="user-subscribe"></div>
+    <br>
+
+    <!-- Subscriptions table -->
+    <h1>Subscriptions</h1>
+    <div id="user-sub-name"></div>
+    <br>
+
+    <table id="sub-results-table">
+        <thead>
+        <tr>
+            <th>Title</th>
+            <th>Year</th>
+            <th>Artist</th>
+            <th>Image</th>
+            <th>Action</th>
+        </tr>
+        </thead>
+        <tbody id="subscriptions-body">
+        <!-- Table body will be populated dynamically -->
+        </tbody>
+    </table>
+    <br>
+    <div class="red" id="user-unsubscribe"></div>
+    <br>
+    <div class="red" id="sub-error-message"></div>
+    
+<script>
+    // user name displayed
+    // access username by element
+    const userInfoDiv = document.getElementById('user-info');
+    const user = JSON.parse(sessionStorage.getItem('user'));
+    userInfoDiv.innerText = `Welcome ${user.user_name}!`;
+
+    // subscription front end declarations
+    const SUB_API_URL = 'https://0dzqs3w2li.execute-api.us-east-1.amazonaws.com/prod/';
+    const SUB_API_KEY = 'AyBYIOpL9g5bxmUACaqMP7rGTou2YayI7fHm4EXf';
+
+    const subscribePath = SUB_API_URL + 'subscribe';
+    const showSubsPath = SUB_API_URL + 'subscriptions';
+    const unsubscribePath = SUB_API_URL + 'unsubscribe';
+
+    // query front end declarations
+    const QUERY_API_URL = 'https://tyd6tse6m6.execute-api.us-east-1.amazonaws.com/prod/query';
+    const QUERY_API_KEY = 'VK5kUvoDgo8840TZrODqK1WaH80Ce7pya9c3hisx';
+
+    const searchForm = document.getElementById('search-form');
+    const errorMessage = document.getElementById('error-message');
+    const resultsBody = document.getElementById('results-body');
+  
+    searchForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+  
+      const title = document.getElementById('title').value;
+      const artist = document.getElementById('artist').value;
+      const year = parseInt(document.getElementById('year').value);
+  
+      const response = await fetch(QUERY_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': QUERY_API_KEY
+        },
+        body: JSON.stringify({ title, year, artist })
+      });
+  
+      // query didnt work
+      if (!response.ok) {
+        const responseData = await response.json();
+        errorMessage.innerText = responseData.message;
+        console.error(responseData.message);
+        return;
+      }
+  
+      // display results returned in a html table
+  
+      // Clear existing table rows
+      resultsBody.innerHTML = '';
+  
+      // Populate the table with query results
+      const responseData = await response.json();
+
+      console.log(responseData)
+      const songs = responseData.songs;
+      if (songs && songs.length > 0) {
+        songs.forEach(async (song) => {
+        const row = document.createElement('tr');
+        const titleCell = document.createElement('td');
+        const yearCell = document.createElement('td');
+        const artistCell = document.createElement('td');
+        const imageCell = document.createElement('td');
+        const actionCell = document.createElement('td');
+
+        titleCell.textContent = song.title;
+        yearCell.textContent = song.year;
+        artistCell.textContent = song.artist;
+        imageCell.innerHTML = '&nbsp;';
+        actionCell.innerHTML = '<button class="subscribe-button">Subscribe</button>';
+
+        // when user clicks subscribe on certian record we post to API
+        actionCell.querySelector('.subscribe-button').addEventListener('click', async () => {
+            const subscribeInfoDiv = document.getElementById('user-subscribe');
+            subscribeInfoDiv.innerText = `Subscribing ${user.user_name} for song with title: ${song.title}...`;
+
+            // onlick append this certain record to the sub-results-table with body: subscription-body
+            const requestBody = {
+                user_name: user.user_name,
+                title: song.title,
+                year: song.year,
+                artist: song.artist,
+                img_url: song.img_url,
+                web_url: song.web_url
+            };
+
+            const response = await fetch(subscribePath, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': SUB_API_KEY
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                subscribeInfoDiv.innerText = `${user.user_name} has already subscribed to song with title: ${song.title}`;
+                console.error('Error subscribing:', response);
+            }else{
+              subscribeInfoDiv.innerText = "";
+            }
+
+            const newRow = document.createElement('tr');
+      newRow.innerHTML = `
+        <td>${song.title}</td>
+        <td>${song.year}</td>
+        <td>${song.artist}</td>
+        <td>&nbsp;</td>
+        <td><button class="remove-button">Remove</button></td>
+      `;
+
+          const subscriptionsTable = document.querySelector('#sub-results-table tbody');
+          subscriptionsTable.appendChild(newRow);
+            //end of subscribe click event
+        });
+
+        row.appendChild(titleCell);
+        row.appendChild(yearCell);
+        row.appendChild(artistCell);
+        row.appendChild(imageCell);
+        row.appendChild(actionCell);
+
+        resultsBody.appendChild(row);
+        // end of loop
+        });
+      } else {
+        errorMessage.innerText = 'No results found.';
+      }
+  
+      console.log('Query Successful!');
+
+    }),
+
+
+      /* SUBSCRIPTIONS DISPLAY */
+    window.addEventListener('load', async (event) => {
+      event.preventDefault();
+
+      const subErrorMessage = document.getElementById('sub-error-message');
+      const subResultsBody = document.getElementById('subscriptions-body');
+
+      const userSubNameDiv = document.getElementById('user-sub-name');
+      userSubNameDiv.innerText = `${user.user_name} Subscriptions`;
+
+      const subResponse = await fetch(showSubsPath, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': SUB_API_KEY
+        },
+        body: JSON.stringify({ user_name: user.user_name })
+      });
+  
+      // query didnt work
+      if (!subResponse.ok) {
+        const subsResponseData = await subResponse.json();
+        subErrorMessage.innerText = subsResponseData.message;
+        console.error(subsResponseData.message);
+        return;
+      }
+  
+      // display results returned in a html table
+  
+      // Clear existing table rows
+      subResultsBody.innerHTML = '';
+  
+      // Populate the table with query results
+      const subscriptionData = await subResponse.json();
+
+      console.log(subscriptionData)
+      const subbedSongs = subscriptionData.subbedSongs;
+      if (subbedSongs && subbedSongs.length > 0) {
+        subbedSongs.forEach(async (subscription) => {
+        const sub_row = document.createElement('tr');
+        const sub_titleCell = document.createElement('td');
+        const sub_yearCell = document.createElement('td');
+        const sub_artistCell = document.createElement('td');
+        const sub_imageCell = document.createElement('td');
+        const sub_actionCell = document.createElement('td');
+
+        sub_titleCell.textContent = subscription.title;
+        sub_yearCell.textContent = subscription.year;
+        sub_artistCell.textContent = subscription.artist;
+        sub_imageCell.innerHTML = '&nbsp;';
+        sub_actionCell.innerHTML = '<button class="remove-button">Remove</button>';
+
+        // when user clicks subscribe on certian record we post to API
+        sub_actionCell.querySelector('.remove-button').addEventListener('click', async () => {
+            const subscribeInfoDiv = document.getElementById('user-unsubscribe');
+            subscribeInfoDiv.innerText = `Deleting ${user.user_name} for song with title: ${subscription.title}...`;
+            
+            // remove this row from table onlick
+
+            const requestBody = {
+                user_name: user.user_name,
+                title: subscription.title,
+            };
+
+            const response = await fetch(unsubscribePath, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': SUB_API_KEY
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!subResponse.ok) {
+                subscribeInfoDiv.innerText = `Error deleting ${user.user_name} for song with title: ${subscription.title}`;
+                console.error('Error deleting:', subResponse);
+            }else{
+                subscribeInfoDiv.innerText = "";
+                console.log('Successfully deleted:', subResponse);
+            }
+
+            sub_row.remove();
+            //end of subscribe click event
+        });
+
+        sub_row.appendChild(sub_titleCell);
+        sub_row.appendChild(sub_yearCell);
+        sub_row.appendChild(sub_artistCell);
+        sub_row.appendChild(sub_imageCell);
+        sub_row.appendChild(sub_actionCell);
+
+        subResultsBody.appendChild(sub_row);
+        // end of loop
+        });
+      } else {
+        subErrorMessage.innerText = 'No subscriptions found';
+      }
+
+
+   });
+
+  
+  </script>
+  
+    
+</body>
+</html>

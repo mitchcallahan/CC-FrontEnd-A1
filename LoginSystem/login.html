@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+  </head>
+  <body>
+    <h1>Login</h1>
+    <form id="login-form">
+      <label for="user_name">User Name:</label>
+      <input type="text" id="user_name" name="user_name">
+      <br>
+      <label for="password">Password:</label>
+      <input type="password" id="password" name="password">
+      <br>
+      <button type="submit">Login</button>
+    </form>
+    <div id="error-message"></div>
+    <br>
+    <a href="register.html">Register here</a>
+    <script>
+      const API_URL = 'https://l6750185x6.execute-api.us-east-1.amazonaws.com/prod/login';
+      const API_KEY = 'Vu7PKCvhH3a0DyZrFln116u00Qc84usn41pb8eeW';
+
+      const loginForm = document.getElementById('login-form');
+      const errorMessage = document.getElementById('error-message');
+
+      loginForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const user_name = document.getElementById('user_name').value;
+        const password = document.getElementById('password').value;
+
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': API_KEY
+          },
+          body: JSON.stringify({ user_name, password })
+        });
+
+        if (!response.ok) {
+          const responseData = await response.json();
+          errorMessage.innerText = responseData.message;
+          console.error(responseData.message);
+          return;
+        }
+
+        const responseData = await response.json();
+        sessionStorage.setItem('user', JSON.stringify(responseData.user));
+        errorMessage.innerText = '';
+        console.log('Login successful!');
+        window.location.href = '../Main/query.html';
+      });
+    </script>
+  </body>
+</html>
+
